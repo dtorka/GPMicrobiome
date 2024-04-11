@@ -8,8 +8,6 @@ import pickle
 import logging
 from hashlib import md5
 
-import random
-
 def inv_softmax(Y):
   X = numpy.zeros((Y.shape[0],Y.shape[1]-1))
   for idx in range(0,Y.shape[0]):
@@ -68,13 +66,9 @@ if __name__ == '__main__':
   parser.add_argument('-t','--time',action='store',dest='time_points',type=str,required=True,help='file containing time points of measurements (required)')
   parser.add_argument('-p','--prediction',action='store',dest='time_points_i',type=str,required=False,help='file containing prediction time points (optional)')
   parser.add_argument('-d','--data',action='store',dest='count_data',type=str,required=True,help='file containing read counts (required)')
-  parser.add_argument('-s', '--seed', action='store',dest='seed_value',type=int,required=True,help='set seed value')
   parser.add_argument('-o','--output',action='store',dest='output_file',type=str,required=True,help='output file for pickling posterior samples (required)')
   parser.add_argument('-v','--version',action='version',version='%(prog)s 0.666')
   options = parser.parse_args()
-  
-  # set seed
-  random.seed(options.seed_value)
 
   # read input
   X = numpy.loadtxt(options.count_data,skiprows=0,delimiter='\t')

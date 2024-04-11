@@ -35,7 +35,6 @@ transformed data {
   matrix[N_timepoints+N_timepoints_i,N_timepoints+N_timepoints_i] distances;
   matrix[N_timepoints+N_timepoints_i,N_timepoints+N_timepoints_i] diag_K;
   real jitter;
-  int<lower=0> N_simulated_counts = 10000;
 
   jitter <- 1e-4;
 
@@ -65,7 +64,6 @@ parameters {
   matrix[N_OTUs-1,N_timepoints] G_d; // with measurements
   matrix[N_OTUs-1,N_timepoints_i] G_i; // without measurements
   matrix[N_OTUs-1,N_timepoints] F;
-  matrix[N_OTUs-1, N_timepoints_i] F_i;
   vector<lower=0,upper=1>[N_OTUs] Beta[N_timepoints];
   real<lower=0> eta_sq[N_OTUs-1];
   real<lower=0> inv_rho_sq[N_OTUs-1];
@@ -84,7 +82,7 @@ model {
   matrix[N_timepoints+N_timepoints_i,N_timepoints+N_timepoints_i] K[N_OTUs-1];
   matrix[N_OTUs-1,N_timepoints+N_timepoints_i] G;
   vector[N_OTUs] Theta[N_timepoints];
-  vector[N_OTUs] Theta_i[N_timepoints_i];
+
   # eta_sq and inv_rho_sq
   eta_sq ~ gamma(eta_sq_a,eta_sq_b);
   inv_rho_sq ~ normal(0,1);
@@ -101,7 +99,6 @@ model {
 
     G[otu] ~ multi_normal(mu_G,K[otu]);
     F[otu] ~ multi_normal_cholesky(G_d[otu],diag_matrix(rep_vector(sigma_sq[otu],N_timepoints)));
-    F_i[otu] ~ multi_normal_cholesky(G_i[otu], diag_matrix(rep_vector(sigma_sq[otu], N_timepoints_i)));
   }
 
   # beta, Theta_G, and likelihood
@@ -110,39 +107,14 @@ model {
     Theta[timepoint] <- softmax_id(col(F,timepoint));
     OTU_reads[timepoint] ~ multinomial((Theta[timepoint] .* Beta[timepoint]) / dot_product(Theta[timepoint],Beta[timepoint]));
   }
-  for(timepoint in 1:N_timepoints_i) {
-    Theta_i[timepoint] <- softmax_id(col(F_i, timepoint));
-  } 
 }
 
 generated quantities {
   simplex[N_OTUs] Theta_G[N_timepoints];
   simplex[N_OTUs] Theta_G_i[N_timepoints_i];
-  simplex[N_OTUs] Theta[N_timepoints];
-  simplex[N_OTUs] Theta_i[N_timepoints_i];
-  vector<lower=0,upper=1>[N_OTUs] Beta_i[N_timepoints_i];
-  int counts[N_timepoints,N_OTUs];
-  int counts_i[N_timepoints_i,N_OTUs];
-
   // Theta_G samples at time points with and without measurements
   for (timepoint in 1:N_timepoints)
     Theta_G[timepoint] <- softmax_id(col(G_d,timepoint));
   for (timepoint in 1:N_timepoints_i)
     Theta_G_i[timepoint] <- softmax_id(col(G_i,timepoint));
-  for(timepoint in 1:N_timepoints)
-  	Theta[timepoint] <- softmax_id(col(F, timepoint));
-  for(timepoint in 1:N_timepoints_i)
-    Theta_i[timepoint] <- softmax_id(col(F_i, timepoint)); 
-  for (timepoint in 1:N_timepoints_i)
-    for (i in 1:N_OTUs)
-      Beta_i[timepoint][i] <- beta_rng(beta_a,beta_b);
-
-  for (timepoint in 1:N_timepoints)
-    counts[timepoint] <- multinomial_rng((Theta[timepoint] .* Beta[timepoint]) / dot_product(Theta[timepoint],Beta[timepoint]),N_simulated_counts);
-
-  for (timepoint in 1:N_timepoints_i)
-    counts_i[timepoint] <- multinomial_rng((Theta_i[timepoint] .* Beta_i[timepoint]) / dot_product(Theta_i[timepoint],Beta_i[timepoint]),N_simulated_counts);
-
 }
-
-
